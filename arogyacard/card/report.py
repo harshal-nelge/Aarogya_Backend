@@ -3,7 +3,7 @@ from google.genai import types
 
 def process_medical_report(file_path):
     """Function to process the medical report using Google Gemini API"""
-    # client = genai.Client(api_key='AIzaSyBQa8QQmA_tAZjR0LyF2jHivjuKu8Q6rAY')
+    client = genai.Client(api_key='AIzaSyBQa8QQmA_tAZjR0LyF2jHivjuKu8Q6rAY')
 
     files = [client.files.upload(file=file_path)]
     model = "gemini-2.0-flash"
