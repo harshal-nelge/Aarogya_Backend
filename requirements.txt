@@ -2,3 +2,7 @@ django
 djangorestframework
 google-genai
 django-cors-headers
+python-dotenv
+langchain 
+langchain_groq 
+groq

@@ -1,9 +1,15 @@
 from google import genai
 from google.genai import types
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
 
 def process_medical_report(file_path):
     """Function to process the medical report using Google Gemini API"""
-    client = genai.Client(api_key='AIzaSyBQa8QQmA_tAZjR0LyF2jHivjuKu8Q6rAY')
+    client = genai.Client(
+        api_key=os.environ.get("GEMINI_API_KEY"),
+    )
 
     files = [client.files.upload(file=file_path)]
     model = "gemini-2.0-flash"
