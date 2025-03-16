@@ -3,11 +3,14 @@ from langchain_core.prompts import ChatPromptTemplate
 from .models import ChatHistory
 from dotenv import load_dotenv
 import os
+import requests
+import json
 
 load_dotenv()
 
 # Get API key from environment variables
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+GOOGLE_PLACES_API_KEY = os.getenv("GOOGLE_PLACES_API_KEY")
 
 # Initialize LLM
 llm = ChatGroq(
@@ -54,3 +57,49 @@ def get_medical_response(hid, user_query):
     chat_history.save()
 
     return response_text  # ✅ Return the corrected response
+
+def extract_disease_from_response(response_text):
+    """Uses ChatGroq to extract the diagnosed disease from the chatbot's response."""
+    
+    prompt = f"""
+    Given the following medical chatbot response, extract the diagnosed disease or condition. 
+    If no disease is mentioned, return 'Unknown'. 
+    Response:
+    {response_text}
+    Answer in this JSON format:
+    {{"disease": "extracted disease"}}
+    """
+
+    result = llm.predict(prompt)
+    
+    # Parse JSON output
+    try:
+        extracted_data = json.loads(result)
+        return extracted_data.get("disease", "Unknown")
+    except json.JSONDecodeError:
+        return "Unknown"
+
+def get_nearby_hospitals(disease, location):
+    """Fetches hospitals specialized in treating the given disease at the specified location."""
+    
+    url = "https://maps.googleapis.com/maps/api/place/textsearch/json"
+    query = f"{disease} specialist hospital near {location}"
+    params = {
+        "query": query,
+        "key": GOOGLE_PLACES_API_KEY
+    }
+
+    response = requests.get(url, params=params)
+    data = response.json()
+
+    if "results" in data:
+        hospitals = [
+            {
+                "name": place["name"],
+                "address": place["formatted_address"],
+                "rating": place.get("rating", "No rating")
+            }
+            for place in data["results"]
+        ]
+        return hospitals
+    return []
