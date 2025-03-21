@@ -22,21 +22,28 @@ llm = ChatGroq(
 )
 
 # Chat Prompt Template
-prompt = ChatPromptTemplate.from_messages(
-    [
-        ("system", 
-         "You are a conversational medical chatbot. Provide diagnosis and recommendations based on the user's symptoms. "
-         "If the symptoms seem severe, advise them to consult a doctor. Keep your responses short and conversational.\n\n"
-         "Engage with the user by asking relevant follow-up questions based on their symptoms. "
-         "For example:\n"
-         "- If the user mentions fever, ask: 'How many days have you had a fever?'\n"
-         "- If the user reports chest pain, ask: 'Do you also feel shortness of breath or dizziness?'\n"
-         "- If the user has a headache, ask: 'Is it a throbbing pain or more like pressure?'\n"
-         "- If the user mentions stomach pain, ask: 'Is the pain constant, or does it come and go?'\n"
-         "Use natural language to make the conversation feel smooth and helpful and try to end the chat after 3 to 4 conversations."),
-        ("human", "{history}\nUser: {input}"),
-    ]
-)
+prompt = ChatPromptTemplate.from_messages([
+    ("system", 
+     "You are a conversational medical chatbot. Gather sufficient information by asking follow-up questions "
+     "before providing a diagnosis. Ask 3-4 relevant follow-up questions based on the user's symptoms to ensure "
+     "you have enough information to provide a helpful assessment.\n\n"
+     "Examples of good follow-up questions:\n"
+     "- If the user mentions fever: 'How many days have you had a fever? Is it accompanied by other symptoms?'\n"
+     "- If the user reports chest pain: 'Do you also feel shortness of breath or dizziness? Where exactly is the pain located?'\n"
+     "- If the user has a headache: 'Is it a throbbing pain or more like pressure? Does light or sound make it worse?'\n"
+     "- If the user mentions stomach pain: 'Is the pain constant or intermittent? Have you noticed any triggers like certain foods?'\n\n"
+     "After gathering sufficient information (3-4 exchanges), provide your final response strictly in the following JSON format only, with no extra text:\n\n"
+     "{{\n"
+     '  "symptoms": "[List user\'s reported symptoms]",\n'
+     '  "potential_cause": "[List possible causes based on symptoms]",\n'
+     '  "recommended_remedy": "[Provide appropriate self-care advice or recommend professional care]",\n'
+     '  "consultation_advice": "[Indicate whether the condition likely requires medical attention or can be managed at home]"\n'
+     "}}"
+    ),
+    ("human", "{history}\nUser: {input}"),
+])
+
+
 
 def get_medical_response(hid, user_query):
     # Retrieve previous history

@@ -9,6 +9,8 @@ from .utils import get_medical_response  # Chatbot logic
 from .serializers import DocumentUploadSerializer
 from .report import process_medical_report  # Google Gemini API processing
 from .models import ChatHistory
+from .news import get_news
+from .clusters import get_outbreak_data
 
 class ChatAPIView(APIView):
     def post(self, request, *args, **kwargs):
@@ -34,15 +36,16 @@ class MedicalReportAPIView(APIView):
             # Save file locally
             file_path = default_storage.path(default_storage.save(pdf_file.name, pdf_file))
 
-            # Process with Google Gemini API
-            response_data = process_medical_report(file_path)
-
-            # Delete file after processing
-            if os.path.exists(file_path):
-                os.remove(file_path)
+            try:
+                # Process with Google Gemini API and store in GCS
+                response_data = process_medical_report(file_path)
+            finally:
+                # Delete file after processing
+                if os.path.exists(file_path):
+                    os.remove(file_path)
 
             return Response(response_data, status=status.HTTP_200_OK)
-        
+
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -80,3 +83,65 @@ class HospitalSearchAPIView(APIView):
             "hospitals": hospitals
         }, status=status.HTTP_200_OK)
 
+class NewsAPIView(APIView):
+    def post(self, request, *args, **kwargs):
+        data = json.loads(request.body)
+        city = data.get("city")
+        country = data.get("country")
+
+        if not city:
+            return Response({"error": "City is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        news = get_news(city, country)
+
+        return Response({"city": city, "country": country, "news": news}, status=status.HTTP_200_OK)
+    
+
+class ClusterAPIView(APIView):
+    def post(self, request, *args, **kwargs):
+        try:
+            # Get year and week from request
+            year = request.data.get('year')
+            week = request.data.get('week')
+            
+            # Validate input parameters
+            if not year or not week:
+                return Response(
+                    {"error": "Both 'year' and 'week' parameters are required"}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Try to convert to integers
+            try:
+                year = int(year)
+                week = int(week)
+            except ValueError:
+                return Response(
+                    {"error": "Year and week must be valid integers"}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Call the function from clusters.py to get the outbreak data
+            result = get_outbreak_data(year, week)
+            
+            # Check if result is a string (error message)
+            if isinstance(result, str) and "error" in result.lower():
+                return Response(
+                    {"error": result}, 
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            # Return the result
+            return Response(
+                {result}, 
+                status=status.HTTP_200_OK
+            )
+            
+        except Exception as e:
+            # Log the error
+            print(f"Error processing request: {str(e)}")
+            return Response(
+                {"error": f"An unexpected error occurred: {str(e)}"}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        

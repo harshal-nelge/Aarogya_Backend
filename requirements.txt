@@ -6,3 +6,9 @@ python-dotenv
 langchain 
 langchain_groq 
 groq
+google-cloud-storage
+googlemaps
+bs4
+requests
+PyPDF2
+eventregistry
