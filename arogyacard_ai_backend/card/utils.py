@@ -1,6 +1,6 @@
 from langchain_groq import ChatGroq
 from langchain_core.prompts import ChatPromptTemplate
-from .models import ChatHistory
+from .models import ChatHistory, DiagnosedDisease
 from dotenv import load_dotenv
 import os
 import requests
@@ -46,28 +46,47 @@ prompt = ChatPromptTemplate.from_messages([
 
 
 def get_medical_response(hid, user_query):
-    # Retrieve previous history
+    """
+    Handles the medical chatbot response generation, updates chat history,
+    extracts diagnosed diseases, and stores them in the database.
+    """
+    # Retrieve or create ChatHistory for the given HID
     chat_history, created = ChatHistory.objects.get_or_create(hid=hid)
     history = "\n".join(
         [f"User: {q}\nBot: {r}" for q, r in chat_history.conversation.items()]
     )
 
-    # Invoke the model
+    # Invoke the model to generate a response
     chain = prompt | llm
     response_message = chain.invoke({"history": history, "input": user_query})
 
-    # ✅ Extract text correctly
-    response_text = response_message.content  # Extract text properly
+    # Extract the response text
+    response_text = response_message.content
 
-    # Update conversation history
+    # Update the conversation history
     chat_history.conversation[user_query] = response_text
     chat_history.save()
 
-    return response_text  # ✅ Return the corrected response
+    # Extract the diagnosed disease from the chatbot's response
+    disease = extract_disease_from_response(response_text)
+    # print(f"Extracted disease: {disease}")
+
+    # Store the diagnosed disease in the database
+    # if disease and disease.lower() != "unknown":
+    #     try:
+    #         DiagnosedDisease.objects.create(hid=chat_history, disease=disease)
+    #         print(f"Disease '{disease}' successfully stored for HID '{hid}'!")
+    #     except Exception as e:
+    #         print(f"Error while storing disease '{disease}' for HID '{hid}': {e}")
+
+    return response_text
+
 
 def extract_disease_from_response(response_text):
-    """Uses ChatGroq to extract the diagnosed disease from the chatbot's response."""
-    
+    """
+    Uses ChatGroq to extract the diagnosed disease from the chatbot's response.
+    If no disease is mentioned, returns 'Unknown'.
+    """
     prompt = f"""
     Given the following medical chatbot response, extract the diagnosed disease or condition. 
     If no disease is mentioned, return 'Unknown'. 
@@ -86,9 +105,11 @@ def extract_disease_from_response(response_text):
     except json.JSONDecodeError:
         return "Unknown"
 
+
 def get_nearby_hospitals(disease, location):
-    """Fetches hospitals specialized in treating the given disease at the specified location."""
-    
+    """
+    Fetches nearby hospitals specialized in treating the given disease at the specified location.
+    """
     url = "https://maps.googleapis.com/maps/api/place/textsearch/json"
     query = f"{disease} specialist hospital near {location}"
     params = {
@@ -96,17 +117,24 @@ def get_nearby_hospitals(disease, location):
         "key": GOOGLE_PLACES_API_KEY
     }
 
-    response = requests.get(url, params=params)
-    data = response.json()
+    try:
+        # Make the API request to fetch hospital data
+        response = requests.get(url, params=params)
+        response.raise_for_status()
+        data = response.json()
 
-    if "results" in data:
-        hospitals = [
-            {
-                "name": place["name"],
-                "address": place["formatted_address"],
-                "rating": place.get("rating", "No rating")
-            }
-            for place in data["results"]
-        ]
-        return hospitals
+        # Extract relevant hospital details
+        if "results" in data:
+            hospitals = [
+                {
+                    "name": place["name"],
+                    "address": place["formatted_address"],
+                    "rating": place.get("rating", "No rating")
+                }
+                for place in data["results"]
+            ]
+            return hospitals
+    except requests.exceptions.RequestException as e:
+        print(f"Error fetching hospitals: {e}")
+
     return []

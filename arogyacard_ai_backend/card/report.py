@@ -3,12 +3,14 @@ from google.genai import types
 from google.cloud import storage
 import os
 from datetime import timedelta
+from dotenv import load_dotenv
+load_dotenv()
 
 # Set the path to the service account key JSON
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = os.path.join(os.path.dirname(__file__), "service-account-key.json")
 
 # Set your bucket name directly in the script
-BUCKET_NAME = "trippy-tripsaverz"
+BUCKET_NAME = os.getenv("BUCKET_NAME")
 
 def upload_to_gcs(file_path):
     """Uploads a file to Google Cloud Storage and returns a signed URL."""

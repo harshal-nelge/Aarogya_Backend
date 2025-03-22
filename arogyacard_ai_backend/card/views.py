@@ -8,9 +8,10 @@ from rest_framework.views import APIView
 from .utils import get_medical_response  # Chatbot logic
 from .serializers import DocumentUploadSerializer
 from .report import process_medical_report  # Google Gemini API processing
-from .models import ChatHistory
+from .models import ChatHistory, DiagnosedDisease
 from .news import get_news
 from .clusters import get_outbreak_data
+from .content import fetch_google_articles, fetch_youtube_videos
 
 class ChatAPIView(APIView):
     def post(self, request, *args, **kwargs):
@@ -71,8 +72,13 @@ class HospitalSearchAPIView(APIView):
         # Extract disease from chatbot response
         disease = extract_disease_from_response(response_text)
         
-        if disease == "Unknown":
-            return Response({"error": "Could not extract a disease from the response."}, status=status.HTTP_400_BAD_REQUEST)
+        if disease and disease.lower() != "unknown":
+            try:
+                DiagnosedDisease.objects.create(hid=hid, disease=disease)
+                print(f"Disease '{disease}' successfully stored for HID '{hid}'!")
+            except Exception as e:
+                print(f"Error while storing disease '{disease}' for HID '{hid}': {e}")
+
 
         # Get nearby hospitals based on the extracted disease and location
         hospitals = get_nearby_hospitals(disease, location)
@@ -144,4 +150,31 @@ class ClusterAPIView(APIView):
                 {"error": f"An unexpected error occurred: {str(e)}"}, 
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-        
+
+class ContentAPIView(APIView):
+    def post(self, request, *args, **kwargs):
+        data = json.loads(request.body)
+        hid = data.get("hid")
+
+        if not hid:
+            return Response({"error": "HID is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Retrieve conversation history from the database
+        try:
+            chat_history = ChatHistory.objects.get(hid=hid)
+            response_text = "\n".join(chat_history.conversation.values())  # Combine all responses
+        except ChatHistory.DoesNotExist:
+            return Response({"error": "Chat history not found for the given HID."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Extract disease from chatbot response
+        disease = extract_disease_from_response(response_text)
+
+        # Fetch YouTube videos and Google articles based on the diagnosed disease
+        videos = fetch_youtube_videos(disease)
+        articles = fetch_google_articles(disease)
+
+        return Response({
+            "disease": disease,
+            "videos": videos,
+            "articles": articles
+        }, status=status.HTTP_200_OK)

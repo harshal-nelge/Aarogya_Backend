@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import ChatAPIView, MedicalReportAPIView, HospitalSearchAPIView, NewsAPIView, ClusterAPIView
+from .views import ChatAPIView, MedicalReportAPIView, HospitalSearchAPIView, NewsAPIView, ClusterAPIView, ContentAPIView
 
 urlpatterns = [
     path("chat/", ChatAPIView.as_view(), name="chat_api"),
@@ -7,4 +7,5 @@ urlpatterns = [
     path('get-hospitals/', HospitalSearchAPIView.as_view(), name='get_hospitals_api'),
     path('get-news/', NewsAPIView.as_view(), name='get_news_api'),
     path('get-outbreaks/', ClusterAPIView.as_view(), name='get_outbreaks_api'),
+    path('get-content/', ContentAPIView.as_view(), name='get_content_api'),
 ]

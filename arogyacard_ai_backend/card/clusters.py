@@ -76,7 +76,7 @@ def get_outbreak_data(year, week_number):
     
     # Check if the PDF URL is a valid Google Drive URL and convert to direct download
     if "drive.google.com" in pdf_url:
-        print(f"Detected Google Drive URL: {pdf_url}")
+        # print(f"Detected Google Drive URL: {pdf_url}")
         file_id = pdf_url.split('/d/')[1].split('/')[0]
         pdf_url = f"https://drive.google.com/uc?export=download&id={file_id}"
 
